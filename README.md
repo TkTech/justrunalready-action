@@ -26,8 +26,7 @@ jobs:
     runs-on: ubuntu-latest  # or macos-latest / windows-latest
     steps:
       - uses: actions/checkout@v4
-      # When published to Marketplace, replace with: owner/justrunalready-action@v1
-      - uses: ./justrunalready-action
+      - uses: tktech/justrunalready-action@v1
         with:
           config: examples/minapp/jra.toml
           args: --verbose
@@ -51,8 +50,7 @@ jobs:
             wrap: zip
     steps:
       - uses: actions/checkout@v4
-      # When published to Marketplace, replace with: owner/justrunalready-action@v1
-      - uses: ./justrunalready-action
+      - uses: tktech/justrunalready-action@v1
         with:
           config: examples/minapp/jra.toml
           wrap: ${{ matrix.wrap }}
