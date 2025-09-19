@@ -44,7 +44,7 @@ runs:
       run: |
         if ! command -v jra >/dev/null 2>&1; then
           python -m pip install --upgrade pip
-          pip install justrunalready
+          pip install justrunalready[inspect]
         fi
         jra --help >/dev/null 2>&1 || (echo "::error::Failed to install or run 'jra'" && exit 1)
 
