@@ -1,0 +1,107 @@
+name: "JustRunAlready"
+description: "Bundle desktop apps cross-platform using JustRunAlready (JRA)"
+author: "tktech"
+branding:
+  icon: "package"
+  color: "blue"
+
+inputs:
+  config:
+    description: "Path to jra.toml config file"
+    required: true
+  args:
+    description: "Extra args to pass to jra bundle (e.g., --verbose)"
+    required: false
+    default: ""
+  wrap:
+    description: "Optional wrapper to produce final artifact (appimage|dmg|zip)"
+    required: false
+    default: ""
+  artifact_name:
+    description: "Override uploaded artifact name"
+    required: false
+    default: ""
+  python-version:
+    description: "Python version to set up"
+    required: false
+    default: "3.11"
+
+outputs:
+  artifact_path:
+    description: "Resolved artifact path uploaded by this action"
+    value: ${{ steps.info.outputs.artifact_path || steps.info.outputs.bundle_path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Ensure JRA is installed
+      shell: bash
+      run: |
+        if ! command -v jra >/dev/null 2>&1; then
+          python -m pip install --upgrade pip
+          pip install justrunalready
+        fi
+        jra --help >/dev/null 2>&1 || (echo "::error::Failed to install or run 'jra'" && exit 1)
+
+    - name: Install Linux dependencies (patchelf, binutils)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y --no-install-recommends patchelf binutils
+
+    - name: Install appimagetool (if wrapping as AppImage)
+      if: runner.os == 'Linux' && inputs.wrap == 'appimage'
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! command -v appimagetool >/dev/null 2>&1; then
+          curl -L -o appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          echo "$PWD" >> $GITHUB_PATH
+        fi
+
+    - name: Run JRA bundle
+      shell: bash
+      run: |
+        set -euo pipefail
+        ARGS="${{ inputs.args }}"
+        WRAP="${{ inputs.wrap }}"
+        if [ -n "$WRAP" ]; then
+          jra bundle --config "${{ inputs.config }}" --platform auto --wrap "$WRAP" $ARGS || { echo "::error::JRA bundle failed"; exit 1; }
+        else
+          jra bundle --config "${{ inputs.config }}" --platform auto $ARGS || { echo "::error::JRA bundle failed"; exit 1; }
+        fi
+
+    - name: Resolve bundle/artifact info
+      id: info
+      shell: bash
+      run: |
+        WRAP="${{ inputs.wrap }}"
+        if [ -n "$WRAP" ]; then
+          jra info --config "${{ inputs.config }}" --platform auto --wrap "$WRAP" --format env >> "$GITHUB_OUTPUT"
+        else
+          jra info --config "${{ inputs.config }}" --platform auto --format env >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact_name || format('{0}-{1}', steps.info.outputs.name, runner.os) }}
+        path: ${{ steps.info.outputs.artifact_path != '' && steps.info.outputs.artifact_path || steps.info.outputs.bundle_path }}
+
+    - name: Validate artifact uploaded
+      shell: bash
+      run: |
+        set -euo pipefail
+        P="${{ steps.info.outputs.artifact_path != '' && steps.info.outputs.artifact_path || steps.info.outputs.bundle_path }}"
+        if [ ! -e "$P" ]; then
+          echo "::error::Expected artifact path not found: $P"
+          echo "Workspace listing:" && ls -la
+          exit 1
+        fi
