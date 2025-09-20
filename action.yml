@@ -70,14 +70,14 @@ runs:
       shell: bash
       run: |
         echo "::group::JRA Doctor Output"
-        jra doctor --config "${{ inputs.config }}" || true
+        jra doctor
         echo "::endgroup::"
 
     - name: Run JRA tree
       shell: bash
       run: |
         echo "::group::JRA Tree Output"
-        jra tree --config "${{ inputs.config }}" --format list || true
+        jra tree --config "${{ inputs.config }}" --format list
         echo "::endgroup::"
 
     - name: Run JRA bundle
