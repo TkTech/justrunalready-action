@@ -44,7 +44,7 @@ runs:
       run: |
         if ! command -v jra >/dev/null 2>&1; then
           python -m pip install --upgrade pip
-          pip install justrunalready[inspect]
+          pip install justrunalready
         fi
         jra --help >/dev/null 2>&1 || (echo "::error::Failed to install or run 'jra'" && exit 1)
 
@@ -65,6 +65,20 @@ runs:
           chmod +x appimagetool
           echo "$PWD" >> $GITHUB_PATH
         fi
+
+    - name: Run JRA doctor
+      shell: bash
+      run: |
+        echo "::group::JRA Doctor Output"
+        jra doctor --config "${{ inputs.config }}" || true
+        echo "::endgroup::"
+
+    - name: Run JRA tree
+      shell: bash
+      run: |
+        echo "::group::JRA Tree Output"
+        jra tree --config "${{ inputs.config }}" --format list || true
+        echo "::endgroup::"
 
     - name: Run JRA bundle
       shell: bash
